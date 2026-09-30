@@ -30,19 +30,28 @@ Two paths, depending on who you are.
 
 ### Docker (recommended — no terminal skills needed after this)
 
-Requires **macOS + [Docker Desktop](https://www.docker.com/products/docker-desktop/)**
-(other platforms aren't supported by this path yet — see
+Requires **macOS or Windows, with [Docker Desktop](https://www.docker.com/products/docker-desktop/)**
+(plain Linux Docker Engine isn't supported by this path yet — see
 [Docker packaging notes](#docker-packaging-notes)) and
 **[Proton Mail Bridge](https://proton.me/mail/bridge)**, installed and logged
 into your real Proton account (Bridge handles that login itself — nothing
 here ever sees your real Proton password).
+
+macOS:
 
 ```bash
 git clone https://github.com/Qaaj/delve.git && cd delve
 ./install.sh
 ```
 
-That builds the app, starts it alongside its own Postgres container, and
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/Qaaj/delve.git; cd delve
+.\install.ps1
+```
+
+Either one builds the app, starts it alongside its own Postgres container, and
 opens `http://localhost:4310` in your browser. You'll land on a short setup
 page asking for the local username/password Bridge shows under your account →
 "Mailbox configuration" — paste those in, and the app restarts itself into
@@ -126,12 +135,22 @@ What's real today vs. what "one curl command" implies but isn't built yet:
   image to a registry (Docker Hub or GHCR) on release, with `docker-compose.yml`
   changed from `build: .` to `image: <published tag>`. Neither exists yet —
   worth doing once this is ready to hand to an actual non-technical person.
-- **Only macOS + Docker Desktop is supported.** `host.docker.internal`
-  (how the container reaches Bridge running on the host) is automatic there;
-  plain Docker Engine on Linux needs an explicit
-  `extra_hosts: ["host.docker.internal:host-gateway"]` entry, and Bridge's
-  Linux install path (deb/rpm/AppImage) differs from macOS/Windows. Untested,
-  not documented, on purpose — scoped out for the first version.
+- **macOS and Windows are supported (both via Docker Desktop); plain Linux
+  Docker Engine isn't yet.** `host.docker.internal` (how the container
+  reaches Bridge running on the host) is automatic on Docker Desktop for
+  both — no `docker-compose.yml` changes were needed to add Windows. Linux
+  needs an explicit `extra_hosts: ["host.docker.internal:host-gateway"]`
+  entry, and Bridge's Linux install path (deb/rpm/AppImage) differs from
+  macOS/Windows too. Untested, not documented, on purpose — scoped out for
+  now.
+- **`install.ps1` (Windows) is written but not yet run on a real Windows
+  machine** — this dev environment is macOS-only, so unlike `install.sh`
+  (which was verified live: built the image, ran the full container
+  lifecycle, confirmed it reaches Bridge and syncs), the PowerShell script
+  is correct by careful mechanical translation from the tested bash version,
+  not by an actual run. Flagging this explicitly rather than calling it
+  equally verified — if you're on Windows and hit an issue running it,
+  that's the first place to look.
 
 ## How sync works
 
@@ -433,7 +452,7 @@ db/schema.sql            Full schema, applied by scripts/setup-db.js
 Dockerfile                App image (Postgres is a separate service in docker-compose.yml)
 docker-compose.yml         The two-container stack (app + db)
 docker-entrypoint.sh         Applies schema, then execs the real CMD
-install.sh                    Docker prereq checks + docker compose up
+install.sh / install.ps1       Docker prereq checks + docker compose up (macOS / Windows)
 lib/
   db.js                  Postgres pool
   emailImport.js         Shared IMAP scan/fetch/insert/ghost-retry logic
@@ -456,5 +475,7 @@ logs/                        Timestamped logs from every script run
   local clone — Docker packaging itself is done and verified (see
   [Docker packaging notes](#docker-packaging-notes)), but it currently builds
   from local source rather than pulling a prebuilt, registry-hosted image
-- Windows/Linux support for the Docker install path (macOS + Docker Desktop
-  only for now — see [Docker packaging notes](#docker-packaging-notes))
+- A Windows machine actually running `install.ps1` — written and believed
+  correct, not yet verified live (see [Docker packaging notes](#docker-packaging-notes))
+- Plain Linux Docker Engine support for the Docker install path (Docker
+  Desktop only for now — see [Docker packaging notes](#docker-packaging-notes))
