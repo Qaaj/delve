@@ -1561,17 +1561,27 @@
     loadDrafts();
   });
 
-  // Unplugged for now — server.js's POST /api/drafts/:id/send still exists
-  // and works (tested live over Bridge's SMTP), this just stops the UI from
-  // calling it. Re-enabling later is a one-line swap: fetch that endpoint
-  // instead of only saving.
   composeSendBtn.addEventListener('click', async () => {
     clearTimeout(composeSaveTimer);
     await saveComposeNow();
-    composeBackdrop.classList.remove('open');
-    composeDraftId = null;
-    loadDrafts();
-    showToast("Sending is unplugged for now — your message was saved as a draft.");
+    if (!composeDraftId) return;
+    const draftId = composeDraftId;
+    composeSendBtn.disabled = true;
+    composeSendBtn.textContent = 'Sending…';
+    try {
+      const res = await fetch(`/api/drafts/${draftId}/send`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+      composeBackdrop.classList.remove('open');
+      composeDraftId = null;
+      loadDrafts();
+      showToast('Sent.');
+    } catch (err) {
+      showToast('Send failed: ' + err.message);
+    } finally {
+      composeSendBtn.disabled = false;
+      composeSendBtn.textContent = 'Send';
+    }
   });
 
   replyBtn.addEventListener('click', () => { if (currentOpenEmail) openCompose('reply', currentOpenEmail); });
