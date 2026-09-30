@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>better-proton setup</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f6f8fc; --border: #e3e6ea;
+    --accent: #1a73e8; --text: #202124; --muted: #5f6368;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--panel); color: var(--text);
+    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Roboto', Arial, sans-serif;
+    font-size: 14px; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: var(--bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 4px 16px rgba(0,0,0,.08);
+    width: 440px; max-width: 100%; padding: 32px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; color: var(--accent); margin-bottom: 4px; }
+  .logo span { font-size: 18px; font-weight: 600; color: var(--text); }
+  h1 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; }
+  p { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 18px; }
+  p a { color: var(--accent); }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 14px 0 5px; }
+  input {
+    width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px;
+    font-size: 13.5px; outline: none; background: var(--bg); color: var(--text);
+  }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .row .narrow { flex: 0 0 90px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .checkbox-row input { width: auto; }
+  .checkbox-row label { margin: 0; font-weight: 500; color: var(--text); }
+  button {
+    width: 100%; margin-top: 22px; background: var(--accent); color: #fff; border: none;
+    border-radius: 20px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  .error {
+    display: none; margin-top: 14px; padding: 10px 12px; border-radius: 6px;
+    background: #fce8e6; color: #c5221f; font-size: 12.5px; line-height: 1.4;
+  }
+  .success {
+    display: none; margin-top: 14px; padding: 10px 12px; border-radius: 6px;
+    background: #e6f4ea; color: #137333; font-size: 12.5px; line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>
+      <span>better-proton</span>
+    </div>
+    <h1>Connect Proton Bridge</h1>
+    <p>
+      Open <strong>Proton Mail Bridge</strong> on this computer → your account →
+      "Mailbox configuration". Copy the username and password shown there —
+      not your real Proton password, Bridge generates its own local one.
+      <br><br>
+      Don't have Bridge installed yet? <a href="https://proton.me/mail/bridge" target="_blank">Get it here</a> first, log in, then come back.
+    </p>
+
+    <form id="setupForm">
+      <label for="user">Bridge username</label>
+      <input id="user" name="user" type="text" autocomplete="off" required placeholder="you@proton.me">
+
+      <label for="password">Bridge password</label>
+      <input id="password" name="password" type="password" autocomplete="off" required>
+
+      <div class="row" style="margin-top: 4px;">
+        <div>
+          <label for="host">Host</label>
+          <input id="host" name="host" type="text" value="host.docker.internal">
+        </div>
+        <div class="narrow">
+          <label for="port">Port</label>
+          <input id="port" name="port" type="number" value="1143">
+        </div>
+      </div>
+      <div class="checkbox-row">
+        <input id="secure" name="secure" type="checkbox">
+        <label for="secure">Use TLS (leave unchecked for Bridge's default)</label>
+      </div>
+
+      <button id="submitBtn" type="submit">Connect &amp; start syncing</button>
+      <div class="error" id="errorBox"></div>
+      <div class="success" id="successBox">Connected — restarting to apply, this page will reload automatically…</div>
+    </form>
+  </div>
+
+<script>
+  const form = document.getElementById('setupForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const errorBox = document.getElementById('errorBox');
+  const successBox = document.getElementById('successBox');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.style.display = 'none';
+    successBox.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Connecting…';
+
+    const payload = {
+      host: document.getElementById('host').value.trim(),
+      port: parseInt(document.getElementById('port').value, 10),
+      secure: document.getElementById('secure').checked,
+      user: document.getElementById('user').value.trim(),
+      password: document.getElementById('password').value,
+    };
+
+    try {
+      const res = await fetch('/api/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Setup failed');
+
+      successBox.style.display = 'block';
+      // The server process exits right after responding (Docker's restart
+      // policy brings it back up with the new config) — poll until the
+      // real app is answering again, then load it.
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const r = await fetch('/api/sync', { cache: 'no-store' });
+          if (r.ok) { clearInterval(poll); location.href = '/'; }
+        } catch (err) {
+          // Still restarting — expected, keep polling.
+        }
+        if (attempts > 60) clearInterval(poll); // ~2 minutes, give up quietly
+      }, 2000);
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Connect & start syncing';
+    }
+  });
+</script>
+</body>
+</html>

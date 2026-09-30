@@ -1,0 +1,13 @@
+node_modules/
+.env
+logs/
+
+# Real downloaded email attachments (currently 4.9GB / 14k+ files) — personal
+# documents, not something that belongs in git history at any size.
+attachments/
+
+# scripts/preview.js's output: real subjects/senders from the actual
+# mailbox, plus deep links into the real Proton account.
+preview.html
+
+.DS_Store

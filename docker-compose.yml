@@ -1,0 +1,45 @@
+# macOS + Docker Desktop only for now (host.docker.internal is automatic
+# there; plain Docker Engine on Linux needs an extra_hosts entry this file
+# doesn't have yet — see README's Docker section).
+#
+# Proton Bridge itself is NOT a service here — it runs natively on the host,
+# outside Docker entirely. This stack only needs to reach its local IMAP/SMTP
+# ports, which host.docker.internal makes possible from inside the container.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: delve
+      POSTGRES_PASSWORD: delve
+      POSTGRES_DB: delve
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U delve"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4310:4310"
+    environment:
+      DATABASE_URL: postgresql://delve:delve@db:5432/delve
+      # Bridge runs on the HOST, not in this container — this is the one
+      # setting a noob would otherwise have to know to change from the
+      # 127.0.0.1 that works for a non-Docker install.
+      IMAP_HOST: host.docker.internal
+      SMTP_HOST: host.docker.internal
+    volumes:
+      - app-data:/app/data
+
+volumes:
+  db-data:
+  app-data:

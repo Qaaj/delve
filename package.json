@@ -1,0 +1,27 @@
+{
+  "name": "delve",
+  "version": "0.1.0",
+  "description": "Postgres-backed full-text search over Proton Mail via Proton Bridge/IMAP — search, thread grouping, compose, and optional local-LLM categorization, self-hosted.",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "setup-db": "node scripts/setup-db.js",
+    "import": "node scripts/import.js",
+    "import-attachments": "node scripts/import-attachments.js",
+    "catchup-recent": "node scripts/catchup-recent.js",
+    "backfill-headers": "node scripts/backfill-headers.js",
+    "compute-threads": "node scripts/compute-threads.js",
+    "categorize": "node scripts/categorize.js",
+    "bench-categorize": "node scripts/bench-categorize.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0",
+    "imapflow": "^1.0.0",
+    "mailparser": "^3.7.0",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.12",
+    "pg": "^8.11.0"
+  }
+}

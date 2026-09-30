@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>better-proton</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f6f8fc; --border: #e3e6ea;
+    --accent: #1a73e8; --text: #202124; --muted: #5f6368;
+    --hover-shadow: 0 1px 2px 0 rgba(60,64,67,.30), 0 1px 3px 1px rgba(60,64,67,.15);
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Roboto', Arial, sans-serif;
+    font-size: 14px;
+  }
+
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 24px; border-bottom: 1px solid var(--border);
+  }
+  .logo { flex-shrink: 0; color: var(--accent); display: flex; align-items: center; }
+
+  .app-body { display: flex; }
+
+  .sidebar {
+    flex-shrink: 0; width: 200px; padding: 12px; border-right: 1px solid var(--border);
+    height: calc(100vh - 69px);
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    padding: 9px 16px; border-radius: 0 20px 20px 0; border: none; background: transparent;
+    color: var(--text); font-size: 14px; cursor: pointer; transition: background .15s;
+  }
+  .nav-item:hover { background: var(--panel); }
+  .nav-item.active { background: #fde8e8; color: #c5221f; font-weight: 600; }
+  .nav-item.active svg { color: #f4b400; }
+  .nav-item svg { flex-shrink: 0; }
+
+  .sidebar-section { margin-top: 18px; }
+  .sidebar-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px; color: var(--muted); font-size: 11.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .save-search-btn {
+    width: 18px; height: 18px; border-radius: 50%; border: none; background: var(--panel);
+    color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .save-search-btn:hover { background: #e8f0fe; color: var(--accent); }
+
+  .saved-search-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    padding: 7px 16px; border-radius: 0 20px 20px 0; border: none; background: transparent;
+    color: var(--text); font-size: 13.5px; cursor: pointer; transition: background .15s;
+  }
+  .saved-search-item:hover { background: var(--panel); }
+  .saved-search-item .ssname {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .saved-search-item .ssdelete {
+    flex-shrink: 0; border: none; background: transparent; color: var(--muted);
+    font-size: 15px; line-height: 1; cursor: pointer; opacity: 0; padding: 2px 4px;
+  }
+  .saved-search-item:hover .ssdelete { opacity: 1; }
+  .saved-search-item .ssdelete:hover { color: #c5221f; }
+
+  .main { flex: 1; min-width: 0; }
+
+  .search-pill {
+    flex: 1; position: relative; display: flex; align-items: center;
+    background: var(--panel); border-radius: 24px; height: 44px; padding: 0 16px;
+    transition: background .15s, box-shadow .15s;
+  }
+  .search-pill:focus-within { background: var(--bg); box-shadow: 0 1px 6px rgba(32,33,36,.28); }
+  .search-pill svg { flex-shrink: 0; color: var(--muted); }
+  #q {
+    flex: 1; border: none; outline: none; background: transparent; color: var(--text);
+    font-size: 15px; padding: 0 12px; height: 100%;
+  }
+  #q::placeholder { color: var(--muted); }
+
+  .cat-pill {
+    flex-shrink: 0; display: flex; align-items: center; gap: 5px;
+    padding: 3px 6px 3px 10px; border-radius: 12px; color: #fff;
+    font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  }
+  .cat-pill button {
+    border: none; background: rgba(255,255,255,.3); color: #fff; border-radius: 50%;
+    width: 15px; height: 15px; font-size: 11px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .cat-pill button:hover { background: rgba(255,255,255,.5); }
+
+  .category-suggestions {
+    position: absolute; top: calc(100% + 6px); left: 16px; right: 16px;
+    background: var(--bg); border-radius: var(--radius); box-shadow: var(--hover-shadow);
+    max-height: 220px; overflow-y: auto; z-index: 10;
+  }
+  .category-suggestions .suggestion-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    cursor: pointer; font-size: 13.5px;
+  }
+  .category-suggestions .suggestion-item:hover,
+  .category-suggestions .suggestion-item.highlighted { background: var(--panel); }
+  .category-suggestions .suggestion-dot {
+    flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%;
+  }
+  .category-suggestions .suggestion-parent {
+    color: var(--muted); font-size: 12px;
+  }
+
+  .icon-btn {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: transparent; color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background .15s;
+  }
+  .icon-btn:hover { background: var(--panel); }
+  .icon-btn svg { transition: transform .5s; }
+  .icon-btn.syncing svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 24px; color: var(--muted); font-size: 13px;
+  }
+  .toolbar select {
+    border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+    color: var(--text); font-size: 13px; padding: 4px 8px; cursor: pointer;
+  }
+  #syncStatus { color: var(--accent); }
+
+  .view-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .view-toggle button {
+    width: 30px; height: 26px; border: none; background: var(--bg); color: var(--muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .view-toggle button + button { border-left: 1px solid var(--border); }
+  .view-toggle button.active { background: #e8f0fe; color: var(--accent); }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; padding: 16px 24px; }
+  .card {
+    width: 150px; cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; transition: box-shadow .1s; background: var(--bg);
+  }
+  .card:hover { box-shadow: var(--hover-shadow); }
+  .card-thumb {
+    width: 150px; height: 150px; display: flex; align-items: center; justify-content: center;
+    background: var(--panel); overflow: hidden;
+  }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .card-thumb .file-badge {
+    display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px;
+    color: var(--muted); text-align: center; width: 100%;
+  }
+  .card-thumb .ext { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #fff;
+    background: var(--muted); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; }
+  .card-thumb .fname { font-size: 11.5px; color: var(--text); word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta { padding: 7px 9px; }
+  .card-meta .cname { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta .csize { font-size: 11px; color: var(--muted); }
+
+  .preview-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    align-items: center; justify-content: center; z-index: 30;
+  }
+  .preview-backdrop.open { display: flex; }
+  .preview-backdrop img { max-width: 95vw; max-height: 95vh; object-fit: contain; }
+  .preview-backdrop iframe { width: 95vw; height: 95vh; border: 0; background: #fff; border-radius: 8px; }
+  .preview-fallback { color: #fff; text-align: center; }
+  .preview-fallback a { color: #8ab4f8; }
+  .preview-close {
+    position: absolute; top: 18px; right: 24px; background: none; border: none;
+    color: #fff; font-size: 30px; cursor: pointer; line-height: 1;
+  }
+
+  .list { border-top: 1px solid var(--border); }
+  .row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 24px;
+    border-bottom: 1px solid var(--border); cursor: pointer; position: relative;
+    background: var(--bg); transition: box-shadow .1s;
+  }
+  .row:hover { box-shadow: var(--hover-shadow); z-index: 1; }
+
+  .star { flex-shrink: 0; width: 18px; height: 18px; color: #f4b400; }
+  .star.unstarred { color: var(--border); }
+
+  .avatar {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 600; text-transform: uppercase;
+  }
+
+  .from {
+    flex-shrink: 0; width: 160px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .category-chip {
+    flex-shrink: 0; width: 92px; overflow: hidden;
+  }
+  .category-chip span {
+    display: inline-block; max-width: 100%; padding: 2px 8px; border-radius: 10px;
+    font-size: 10.5px; font-weight: 600; color: #fff; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+  }
+
+  .company {
+    flex-shrink: 0; width: 120px; color: var(--muted); font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Category features only show up if /api/categories reports at least one
+     row has ever been AI-categorized — see loadCategories(). Keeps the same
+     codebase working cleanly for a pure-Postgres install (no LM Studio ever
+     run) without a separate build/config flag. */
+  body.no-ai .category-chip, body.no-ai .company, body.no-ai #categorySelect {
+    display: none;
+  }
+
+  .subject-line {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text);
+  }
+  .subject-line .subject { font-weight: 500; }
+  .subject-line .dash { color: var(--muted); }
+  .subject-line .snip { color: var(--muted); font-weight: 400; }
+  .thread-count {
+    display: inline-block; flex-shrink: 0; background: var(--panel); color: var(--muted);
+    border-radius: 10px; font-size: 11px; font-weight: 700; padding: 1px 7px; margin-right: 6px;
+  }
+
+  .date { flex-shrink: 0; width: 72px; text-align: right; color: var(--muted); font-size: 12.5px; }
+
+  mark { background: #fff2a8; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+  .empty { text-align: center; color: var(--muted); padding: 80px 20px; }
+
+  .backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    align-items: center; justify-content: center; z-index: 20; padding: 20px;
+  }
+  .backdrop.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.3);
+    width: 95vw; height: 95vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .modal-subject { font-size: 17px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+  .modal-meta { font-size: 13px; color: var(--muted); }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; border-radius: 50%; width: 32px; height: 32px; }
+  .modal-close:hover { background: var(--panel); }
+  .modal-thread-list {
+    display: none; padding: 8px 22px; border-bottom: 1px solid var(--border);
+    background: var(--panel); max-height: 140px; overflow-y: auto; flex-shrink: 0;
+  }
+  .modal-thread-list.open { display: block; }
+  .modal-thread-list .mtl-label {
+    font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; margin-bottom: 4px;
+  }
+  .modal-thread-item {
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px;
+    cursor: pointer; font-size: 12.5px;
+  }
+  .modal-thread-item:hover { background: rgba(0,0,0,.05); }
+  .modal-thread-item.current { background: #e8f0fe; font-weight: 600; }
+  .modal-thread-item .mtname { flex-shrink: 0; width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-thread-item .mtsnip { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-thread-item .mtdate { flex-shrink: 0; color: var(--muted); font-size: 11px; }
+
+  .modal-body { flex: 1; overflow: hidden; }
+  .modal-body iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .modal-body pre { padding: 20px; white-space: pre-wrap; word-break: break-word; color: #111; font-family: -apple-system, sans-serif; }
+
+  .modal-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .modal-action-btn {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 16px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .modal-action-btn:hover { background: var(--panel); }
+
+  .compose-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 14px;
+    border: none; background: #e8f0fe; color: #1967d2; border-radius: 20px;
+    padding: 12px 20px; font-size: 14.5px; font-weight: 600; cursor: pointer;
+    box-shadow: var(--hover-shadow);
+  }
+  .compose-btn:hover { box-shadow: 0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15); }
+
+  .compose-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.15);
+    align-items: flex-end; justify-content: flex-end; z-index: 40; padding: 24px; pointer-events: none;
+  }
+  .compose-backdrop.open { display: flex; }
+  .compose-modal {
+    width: 640px; max-width: 95vw; height: 600px; max-height: 90vh;
+    background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    display: flex; flex-direction: column; overflow: hidden; pointer-events: auto;
+  }
+  .compose-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .compose-modal-title { font-size: 13.5px; font-weight: 600; }
+  .compose-modal-header-actions { display: flex; align-items: center; gap: 4px; }
+  .compose-save-status { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .compose-icon-btn {
+    border: none; background: transparent; color: var(--muted); cursor: pointer;
+    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 18px;
+  }
+  .compose-icon-btn:hover { background: rgba(0,0,0,.08); }
+
+  .compose-field-row {
+    display: flex; align-items: flex-start; border-bottom: 1px solid var(--border);
+    padding: 6px 16px; gap: 8px; flex-shrink: 0;
+  }
+  .compose-field-row label { flex-shrink: 0; width: 32px; color: var(--muted); font-size: 13px; padding-top: 6px; }
+  .chip-input-wrap { position: relative; flex: 1; min-width: 0; }
+  .compose-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 26px; }
+  .compose-chip {
+    display: flex; align-items: center; gap: 5px; background: var(--panel); border-radius: 14px;
+    padding: 3px 6px 3px 10px; font-size: 12.5px; color: var(--text); white-space: nowrap;
+  }
+  .compose-chip button {
+    border: none; background: transparent; color: var(--muted); cursor: pointer;
+    font-size: 13px; line-height: 1; padding: 3px; border-radius: 50%;
+  }
+  .compose-chip button:hover { background: rgba(0,0,0,.08); }
+  .compose-chip-input {
+    flex: 1; min-width: 100px; border: none; outline: none; font-size: 13.5px;
+    padding: 4px 2px; background: transparent;
+  }
+  .compose-ccbcc-toggle { color: var(--accent); font-size: 12.5px; cursor: pointer; padding-top: 6px; flex-shrink: 0; }
+
+  .chip-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg); border-radius: var(--radius); box-shadow: var(--hover-shadow);
+    max-height: 200px; overflow-y: auto; z-index: 50;
+  }
+  .chip-suggestions .suggestion-item { display: flex; flex-direction: column; padding: 7px 12px; cursor: pointer; font-size: 13px; }
+  .chip-suggestions .suggestion-item:hover,
+  .chip-suggestions .suggestion-item.highlighted { background: var(--panel); }
+  .chip-suggestions .sname { font-weight: 600; }
+  .chip-suggestions .saddr { color: var(--muted); font-size: 11.5px; }
+
+  .compose-subject {
+    border: none; outline: none; width: 100%; padding: 10px 16px; font-size: 14px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  .compose-attachments { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px; flex-shrink: 0; }
+  .compose-attachments:not(:empty) { padding: 8px 16px; }
+  .compose-attachment-chip {
+    display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-size: 12.5px; max-width: 220px;
+  }
+  .compose-attachment-chip .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .compose-attachment-chip .fsize { color: var(--muted); flex-shrink: 0; }
+  .compose-attachment-chip button { border: none; background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+
+  .compose-body {
+    flex: 1; overflow-y: auto; padding: 14px 16px; outline: none; font-size: 14px; line-height: 1.5;
+  }
+  .compose-body blockquote { margin: 0 0 0 .8ex; border-left: 2px solid var(--border); padding-left: 1ex; color: var(--muted); }
+
+  .compose-toolbar {
+    display: flex; align-items: center; gap: 4px; padding: 6px 12px;
+    border-top: 1px solid var(--border); background: var(--panel); flex-shrink: 0;
+  }
+  .fmt-btn { border: none; background: transparent; border-radius: 4px; color: var(--text); cursor: pointer; font-size: 12.5px; padding: 6px 9px; }
+  .fmt-btn:hover { background: rgba(0,0,0,.08); }
+
+  .compose-footer { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .compose-send-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 20px; padding: 10px 24px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .compose-send-btn:hover { box-shadow: var(--hover-shadow); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #323232; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13.5px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3); z-index: 60; max-width: 90vw; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo" title="better-proton">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>
+    </div>
+    <div class="search-pill">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div id="categoryPill" style="display:none"></div>
+      <input id="q" type="text" placeholder='Search — try from:acme, has:attachment, category:travel, company:amazon, after:2026-01-01, or "exact phrase"' autofocus>
+      <div id="categorySuggestions" class="category-suggestions" style="display:none"></div>
+    </div>
+    <button class="icon-btn" id="syncBtn" title="Sync with Proton">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+    </button>
+  </div>
+
+  <div class="app-body">
+    <nav class="sidebar">
+      <button class="compose-btn" id="composeBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Compose
+      </button>
+      <button class="nav-item" id="navAllMail">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>
+        All Mail
+      </button>
+      <button class="nav-item" id="navStarred">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        Starred
+      </button>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>Saved searches</span>
+          <button class="save-search-btn" id="saveSearchBtn" title="Save current search">+</button>
+        </div>
+        <div id="savedSearchList"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span>Drafts</span>
+        </div>
+        <div id="draftList"></div>
+      </div>
+    </nav>
+
+    <div class="main">
+      <div class="toolbar">
+        <span id="hint"></span>
+        <span style="display:flex; align-items:center; gap:10px;">
+          <span id="syncStatus"></span>
+          <select id="categorySelect">
+            <option value="">All categories</option>
+          </select>
+          <select id="sortSelect">
+            <option value="relevance">Best match</option>
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="from_asc">Sender A-Z</option>
+            <option value="company_asc">Company A-Z</option>
+          </select>
+          <div class="view-toggle">
+            <button id="viewList" class="active" title="List view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            </button>
+            <button id="viewGrid" title="Attachment grid">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            </button>
+          </div>
+        </span>
+      </div>
+
+      <div class="list" id="list"></div>
+      <div class="grid" id="grid" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="backdrop" id="backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-subject" id="modalSubject"></div>
+          <div class="modal-meta" id="modalMeta"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="modal-action-btn" id="replyBtn">Reply</button>
+          <button class="modal-action-btn" id="replyAllBtn">Reply All</button>
+          <button class="modal-action-btn" id="forwardBtn">Forward</button>
+        </div>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-thread-list" id="modalThreadList"></div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="preview-backdrop" id="previewBackdrop">
+    <button class="preview-close" id="previewClose">&times;</button>
+    <div id="previewContent"></div>
+  </div>
+
+  <!-- Compose: new message / reply / reply-all / forward. Autosaves to a
+       drafts row as you type — there is no send path yet, see server.js. -->
+  <div class="compose-backdrop" id="composeBackdrop">
+    <div class="compose-modal">
+      <div class="compose-modal-header">
+        <span class="compose-modal-title" id="composeModalTitle">New Message</span>
+        <div class="compose-modal-header-actions">
+          <span class="compose-save-status" id="composeSaveStatus"></span>
+          <button class="compose-icon-btn" id="composeDiscardBtn" title="Discard draft">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          </button>
+          <button class="compose-icon-btn" id="composeCloseBtn" title="Close">&times;</button>
+        </div>
+      </div>
+
+      <div class="compose-field-row">
+        <label>To</label>
+        <div class="chip-input-wrap">
+          <div class="compose-chips" id="composeToChips">
+            <input class="compose-chip-input" id="composeToInput">
+          </div>
+          <div class="chip-suggestions" id="composeToSuggestions" style="display:none"></div>
+        </div>
+        <span class="compose-ccbcc-toggle" id="composeCcBccToggle">Cc/Bcc</span>
+      </div>
+      <div class="compose-field-row" id="composeCcRow" style="display:none">
+        <label>Cc</label>
+        <div class="chip-input-wrap">
+          <div class="compose-chips" id="composeCcChips">
+            <input class="compose-chip-input" id="composeCcInput">
+          </div>
+          <div class="chip-suggestions" id="composeCcSuggestions" style="display:none"></div>
+        </div>
+      </div>
+      <div class="compose-field-row" id="composeBccRow" style="display:none">
+        <label>Bcc</label>
+        <div class="chip-input-wrap">
+          <div class="compose-chips" id="composeBccChips">
+            <input class="compose-chip-input" id="composeBccInput">
+          </div>
+          <div class="chip-suggestions" id="composeBccSuggestions" style="display:none"></div>
+        </div>
+      </div>
+
+      <input class="compose-subject" id="composeSubject" placeholder="Subject">
+
+      <div class="compose-attachments" id="composeAttachments"></div>
+
+      <div class="compose-body" id="composeBody" contenteditable="true"></div>
+
+      <div class="compose-toolbar">
+        <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button type="button" class="fmt-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button type="button" class="fmt-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <button type="button" class="fmt-btn" data-cmd="insertUnorderedList" title="Bulleted list">List</button>
+        <button type="button" class="fmt-btn" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+        <button type="button" class="fmt-btn" data-cmd="createLink" title="Insert link">Link</button>
+        <button type="button" class="fmt-btn" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+        <span style="flex:1"></span>
+        <button type="button" id="composeAttachBtn" class="fmt-btn" title="Attach files">Attach</button>
+        <input type="file" id="composeFileInput" multiple style="display:none">
+      </div>
+
+      <div class="compose-footer">
+        <button class="compose-send-btn" id="composeSendBtn">Send</button>
+        <span style="color:var(--muted); font-size:12px;">Closing keeps this as a draft</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" style="display:none"></div>
+
+<script>
+  const qInput = document.getElementById('q');
+  const hint = document.getElementById('hint');
+  const list = document.getElementById('list');
+  const grid = document.getElementById('grid');
+  const sortSelect = document.getElementById('sortSelect');
+  const categorySelect = document.getElementById('categorySelect');
+  const categoryPill = document.getElementById('categoryPill');
+  const categorySuggestions = document.getElementById('categorySuggestions');
+  const syncBtn = document.getElementById('syncBtn');
+  const navAllMail = document.getElementById('navAllMail');
+  const navStarred = document.getElementById('navStarred');
+  const savedSearchList = document.getElementById('savedSearchList');
+  const saveSearchBtn = document.getElementById('saveSearchBtn');
+  const syncStatus = document.getElementById('syncStatus');
+  const backdrop = document.getElementById('backdrop');
+  const modalClose = document.getElementById('modalClose');
+  const modalSubject = document.getElementById('modalSubject');
+  const modalMeta = document.getElementById('modalMeta');
+  const modalBody = document.getElementById('modalBody');
+  const modalThreadList = document.getElementById('modalThreadList');
+  const viewListBtn = document.getElementById('viewList');
+  const viewGridBtn = document.getElementById('viewGrid');
+  const previewBackdrop = document.getElementById('previewBackdrop');
+  const previewClose = document.getElementById('previewClose');
+  const previewContent = document.getElementById('previewContent');
+
+  let currentResults = [];
+  let currentTerms = [];
+  let currentQuery = '';
+  let currentAttachments = [];
+  let viewMode = 'list';
+  let requestSeq = 0;
+  let debounceTimer = null;
+  let allDomains = []; // populated by loadCategories(), used for category: autocomplete
+  let allSubcategories = []; // granular categories (e.g. "food_delivery"), also autocompletable
+  let subcategoryToDomain = {}; // subcategory -> parent domain, for grouping + color matching
+  let selectedCategory = null; // the active category pill/filter, kept separate from the free-text input
+  let suggestionHighlightIdx = -1;
+  let currentOpenEmail = null; // the full row behind the read-only preview modal, used by Reply/Reply All/Forward
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function highlight(text, terms) {
+    const escaped = escapeHtml(text);
+    const safe = terms.filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (safe.length === 0) return escaped;
+    const re = new RegExp('(' + safe.join('|') + ')', 'gi');
+    return escaped.replace(re, '<mark>$1</mark>');
+  }
+
+  // Gmail's own list date format: time for today, "Mon D" for this year, "M/D/YY" for older.
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    if (d.getFullYear() === now.getFullYear()) {
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+    return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: '2-digit' });
+  }
+
+  function formatDateLong(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  // Consistent per-sender avatar color, hashed from the address. Reused for
+  // category chips too (hashed on domain instead), so each category gets a
+  // stable, distinct-ish color without maintaining a separate color map.
+  function avatarColor(seed) {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    return `hsl(${hash % 360}, 55%, 45%)`;
+  }
+
+  // "marketing_newsletter" -> "Marketing Newsletter"
+  function formatCategory(domain) {
+    if (!domain) return '';
+    return domain.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // First word only ("Marketing"), for the narrow row chip — every domain's
+  // first word is unique, so this stays unambiguous while fitting the space.
+  // The full name is still shown in the chip's tooltip and the dropdown.
+  function formatCategoryShort(domain) {
+    return formatCategory(domain).split(' ')[0];
+  }
+
+  // A subcategory pill should share its parent domain's color (so it visually
+  // matches the domain-level row chips), not hash on its own subcategory
+  // string — otherwise picking "food_delivery" would show an unrelated color
+  // from every "shopping_commerce" row in the list.
+  function categoryColorSeed(cat) {
+    return subcategoryToDomain[cat] || cat;
+  }
+
+  // Populates the category dropdown from the live taxonomy (lib/categorize.js
+  // via /api/categories) rather than a hardcoded list, so it can't drift out
+  // of sync with the actual categorization taxonomy.
+  async function loadCategories() {
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      document.body.classList.toggle('no-ai', !data.enabled);
+      if (!data.enabled) {
+        // No row has ever been AI-categorized on this install — drop the
+        // now-pointless sort option too (the CSS class above only hides the
+        // chip/company/dropdown, a <select> option needs removing directly).
+        const companySortOpt = sortSelect.querySelector('option[value="company_asc"]');
+        if (companySortOpt) companySortOpt.remove();
+        qInput.placeholder = 'Search — try from:acme, has:attachment, after:2026-01-01, or "exact phrase"';
+        return;
+      }
+      allDomains = data.domains || [];
+      allSubcategories = data.subcategories || [];
+      subcategoryToDomain = data.subcategoryToDomain || {};
+      for (const d of allDomains) {
+        const group = document.createElement('optgroup');
+        group.label = formatCategory(d);
+        const allOpt = document.createElement('option');
+        allOpt.value = d;
+        allOpt.textContent = 'All ' + formatCategory(d);
+        group.appendChild(allOpt);
+        const subs = allSubcategories.filter(s => subcategoryToDomain[s] === d).sort();
+        for (const s of subs) {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = formatCategory(s);
+          group.appendChild(opt);
+        }
+        categorySelect.appendChild(group);
+      }
+    } catch (err) {
+      // Non-fatal — treated the same as "not enabled".
+      document.body.classList.add('no-ai');
+    }
+  }
+
+  // ─── Saved searches ─────────────────────────────────────────────────────
+
+  async function loadSavedSearches() {
+    try {
+      const res = await fetch('/api/saved-searches');
+      const data = await res.json();
+      renderSavedSearches(data.results || []);
+    } catch (err) {
+      // Non-fatal — the sidebar section just stays empty.
+    }
+  }
+
+  function renderSavedSearches(items) {
+    if (items.length === 0) {
+      savedSearchList.innerHTML = '';
+      return;
+    }
+    savedSearchList.innerHTML = items.map(s => `
+      <div class="saved-search-item" data-query="${escapeHtml(s.query)}" title="${escapeHtml(s.query)}">
+        <span class="ssname">${escapeHtml(s.name)}</span>
+        <button class="ssdelete" data-id="${s.id}" title="Delete">&times;</button>
+      </div>`).join('');
+  }
+
+  savedSearchList.addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.ssdelete');
+    if (deleteBtn) {
+      e.stopPropagation();
+      await fetch('/api/saved-searches/' + deleteBtn.dataset.id, { method: 'DELETE' });
+      loadSavedSearches();
+      return;
+    }
+    const item = e.target.closest('.saved-search-item[data-query]');
+    if (!item) return;
+    loadQueryIntoUI(item.dataset.query);
+  });
+
+  saveSearchBtn.addEventListener('click', async () => {
+    const query = currentQuery.trim();
+    if (!query) { alert('Type a search first, then save it.'); return; }
+    const name = prompt('Name this saved search:', query.slice(0, 40));
+    if (!name || !name.trim()) return;
+    await fetch('/api/saved-searches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), query }),
+    });
+    loadSavedSearches();
+  });
+
+  // ─── Category pill + autocomplete ───────────────────────────────────────
+  // selectedCategory is kept as separate state, not embedded as literal text
+  // in the search box — the box holds only free text / other operators, and
+  // the active category shows as a removable pill instead. getEffectiveQuery()
+  // is what actually gets sent to the server; it composes the two back
+  // together, so every call site that runs a search must go through it (or
+  // through loadQueryIntoUI, for loading a fully-formed saved query).
+
+  function getEffectiveQuery() {
+    const free = qInput.value.trim();
+    if (!selectedCategory) return free;
+    return (free ? free + ' ' : '') + 'category:' + selectedCategory;
+  }
+
+  function renderCategoryPill() {
+    if (!selectedCategory) {
+      categoryPill.style.display = 'none';
+      categoryPill.innerHTML = '';
+      categorySelect.value = '';
+      return;
+    }
+    categoryPill.style.display = '';
+    categoryPill.style.background = avatarColor(categoryColorSeed(selectedCategory));
+    categoryPill.innerHTML = `${escapeHtml(formatCategoryShort(selectedCategory))}<button title="Remove filter">&times;</button>`;
+    categorySelect.value = selectedCategory;
+  }
+
+  function setSelectedCategory(domain) {
+    selectedCategory = domain || null;
+    renderCategoryPill();
+    runSearch(getEffectiveQuery());
+  }
+
+  categoryPill.addEventListener('click', (e) => {
+    if (e.target.closest('button')) setSelectedCategory(null);
+  });
+
+  // Parses a fully-formed query string (e.g. from a saved search) into pill +
+  // clean free text, then runs it — unlike live typing, where the category:
+  // text is only converted to a pill on an explicit autocomplete selection
+  // (see the #q input listener), so partial typing isn't clobbered mid-word.
+  function loadQueryIntoUI(q) {
+    const m = q.match(/\bcategory:(\S+)/i);
+    selectedCategory = m ? m[1].toLowerCase() : null;
+    qInput.value = q.replace(/\s*\bcategory:\S+/i, '').trim();
+    renderCategoryPill();
+    runSearch(q);
+  }
+
+  function hideSuggestions() {
+    categorySuggestions.style.display = 'none';
+    categorySuggestions.innerHTML = '';
+    suggestionHighlightIdx = -1;
+  }
+
+  function showSuggestions(partial) {
+    const needle = partial.toLowerCase();
+    // Domains and subcategories share one flat autocomplete list — matched
+    // against both the raw key and its formatted label, so typing "food"
+    // finds "food_delivery" even though the key itself contains the match
+    // but a search for "delivery" should too.
+    const all = [...allDomains, ...allSubcategories];
+    const matches = all.filter(c => c.includes(needle) || formatCategory(c).toLowerCase().includes(needle)).slice(0, 8);
+    if (matches.length === 0) { hideSuggestions(); return; }
+    categorySuggestions.innerHTML = matches.map((c, i) => {
+      const parentDomain = subcategoryToDomain[c];
+      const label = parentDomain
+        ? `${escapeHtml(formatCategory(c))} <span class="suggestion-parent">— ${escapeHtml(formatCategory(parentDomain))}</span>`
+        : `${escapeHtml(formatCategory(c))} <span class="suggestion-parent">(all)</span>`;
+      return `
+      <div class="suggestion-item${i === 0 ? ' highlighted' : ''}" data-domain="${c}">
+        <span class="suggestion-dot" style="background:${avatarColor(categoryColorSeed(c))}"></span>
+        ${label}
+      </div>`;
+    }).join('');
+    categorySuggestions.style.display = '';
+    suggestionHighlightIdx = 0;
+  }
+
+  function applySuggestion(domain) {
+    qInput.value = qInput.value.replace(/\bcategory:\S*$/i, '').trim();
+    hideSuggestions();
+    setSelectedCategory(domain);
+  }
+
+  categorySuggestions.addEventListener('click', (e) => {
+    const item = e.target.closest('.suggestion-item[data-domain]');
+    if (item) applySuggestion(item.dataset.domain);
+  });
+
+  function render() {
+    if (currentResults.length === 0) {
+      list.innerHTML = '<div class="empty">No matches.</div>';
+      hint.textContent = 'No matches.';
+      return;
+    }
+
+    let rows = [...currentResults];
+    const sortMode = sortSelect.value;
+    if (sortMode !== 'relevance') {
+      rows.sort((a, b) => {
+        if (sortMode === 'date_desc' || sortMode === 'date_asc') {
+          const av = new Date(a.email_date).getTime() || 0;
+          const bv = new Date(b.email_date).getTime() || 0;
+          return sortMode === 'date_desc' ? bv - av : av - bv;
+        }
+        if (sortMode === 'company_asc') {
+          // Uncategorized (null company) sorts last, not first.
+          const av = (a.company || '').toLowerCase();
+          const bv = (b.company || '').toLowerCase();
+          if (!av && !bv) return 0;
+          if (!av) return 1;
+          if (!bv) return -1;
+          return av < bv ? -1 : av > bv ? 1 : 0;
+        }
+        const av = (a.from_name || a.from_address).toLowerCase();
+        const bv = (b.from_name || b.from_address).toLowerCase();
+        return av < bv ? -1 : av > bv ? 1 : 0;
+      });
+    }
+
+    hint.textContent = currentQuery
+      ? `${currentResults.length} result${currentResults.length === 1 ? '' : 's'}`
+      : `Latest ${currentResults.length}`;
+
+    list.innerHTML = rows.map(r => {
+      const name = r.from_name || r.from_address || '?';
+      const initial = name.trim()[0] || '?';
+      const starred = (r.labels || []).includes('Starred');
+      const categoryChip = r.domain
+        ? `<span style="background:${avatarColor(r.domain)}" title="${escapeHtml(formatCategory(r.domain) + (r.subcategory ? ' / ' + r.subcategory : ''))}">${escapeHtml(formatCategoryShort(r.domain))}</span>`
+        : '';
+      // Scaffolding for thread/conversation grouping (scripts/compute-threads.js) —
+      // just a count badge for now. thread_key is on the row for a future
+      // "open the whole conversation" view (GET /api/thread/:key already
+      // exists and returns every message in it, oldest first).
+      const threadBadge = r.thread_count > 1
+        ? `<span class="thread-count" title="${r.thread_count} messages in this conversation">${r.thread_count}</span>`
+        : '';
+      return `
+      <div class="row" data-id="${r.id}" data-thread-key="${escapeHtml(r.thread_key || '')}">
+        <svg class="star ${starred ? '' : 'unstarred'}" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        <div class="avatar" style="background:${avatarColor(r.from_address || name)}">${escapeHtml(initial)}</div>
+        <div class="from">${highlight(name, currentTerms)}</div>
+        <div class="category-chip">${categoryChip}</div>
+        <div class="company" title="${escapeHtml(r.company || '')}">${highlight(r.company || '', currentTerms)}</div>
+        <div class="subject-line">
+          ${threadBadge}
+          <span class="subject">${highlight(r.subject, currentTerms)}</span>
+          <span class="dash"> — </span>
+          <span class="snip">${highlight(r.snippet, currentTerms)}</span>
+        </div>
+        <div class="date" title="${escapeHtml(formatDateLong(r.email_date))}">${formatDate(r.email_date)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function runSearch(q) {
+    const seq = ++requestSeq;
+    hint.textContent = q ? 'Searching...' : 'Loading...';
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      if (seq !== requestSeq) return; // a newer search already started
+      currentResults = data.results;
+      currentTerms = data.terms;
+      currentQuery = q;
+      render();
+    } catch (err) {
+      if (seq !== requestSeq) return;
+      hint.textContent = 'Search failed: ' + err.message;
+    }
+    syncNavActive();
+    runAttachmentSearch(q, seq); // kept in step with the same query, fetched in parallel so toggling view is instant
+  }
+
+  async function runAttachmentSearch(q, seq) {
+    try {
+      const res = await fetch('/api/search/attachments?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      if (seq !== requestSeq) return;
+      currentAttachments = data.results || [];
+      if (viewMode === 'grid') renderGrid();
+    } catch (err) {
+      // Non-fatal — the list view still works even if this fails.
+    }
+  }
+
+  function syncNavActive() {
+    navStarred.classList.toggle('active', currentQuery.trim() === 'label:Starred');
+    navAllMail.classList.toggle('active', currentQuery.trim() === '');
+  }
+
+  function fmtSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function renderGrid() {
+    if (currentAttachments.length === 0) {
+      grid.innerHTML = '<div class="empty">No attachments.</div>';
+      return;
+    }
+    grid.innerHTML = currentAttachments.map(a => {
+      const isImage = (a.content_type || '').startsWith('image/');
+      const ext = (a.filename || '').split('.').pop().slice(0, 5) || '?';
+      const thumb = isImage
+        ? `<img src="/api/attachment/${a.id}" loading="lazy">`
+        : `<div class="file-badge"><span class="ext">${escapeHtml(ext)}</span><span class="fname">${escapeHtml(a.filename || 'file')}</span></div>`;
+      return `
+        <div class="card" data-id="${a.id}" data-content-type="${escapeHtml(a.content_type || '')}" data-filename="${escapeHtml(a.filename || '')}">
+          <div class="card-thumb">${thumb}</div>
+          <div class="card-meta">
+            <div class="cname" title="${escapeHtml(a.filename || '')}">${escapeHtml(a.filename || '(unnamed)')}</div>
+            <div class="csize">${fmtSize(a.size_bytes)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    viewListBtn.classList.toggle('active', mode === 'list');
+    viewGridBtn.classList.toggle('active', mode === 'grid');
+    list.style.display = mode === 'list' ? '' : 'none';
+    grid.style.display = mode === 'grid' ? '' : 'none';
+    if (mode === 'grid') renderGrid();
+  }
+
+  viewListBtn.addEventListener('click', () => setViewMode('list'));
+  viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('.card[data-id]');
+    if (!card) return;
+    openPreview(card.dataset.id, card.dataset.contentType, card.dataset.filename);
+  });
+
+  function openPreview(id, contentType, filename) {
+    const url = '/api/attachment/' + id;
+    if ((contentType || '').startsWith('image/')) {
+      previewContent.innerHTML = `<img src="${url}" alt="${escapeHtml(filename)}">`;
+    } else if (contentType === 'application/pdf') {
+      previewContent.innerHTML = `<iframe src="${url}"></iframe>`;
+    } else {
+      previewContent.innerHTML = `<div class="preview-fallback"><p>${escapeHtml(filename)}</p><p><a href="${url}" target="_blank">Open file</a></p></div>`;
+    }
+    previewBackdrop.classList.add('open');
+  }
+
+  function closePreview() {
+    previewBackdrop.classList.remove('open');
+    previewContent.innerHTML = '';
+  }
+
+  previewClose.addEventListener('click', closePreview);
+  previewBackdrop.addEventListener('click', (e) => { if (e.target === previewBackdrop) closePreview(); });
+
+  qInput.addEventListener('input', () => {
+    const trailingMatch = qInput.value.match(/\bcategory:(\w*)$/i);
+    if (trailingMatch) showSuggestions(trailingMatch[1]);
+    else hideSuggestions();
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => runSearch(getEffectiveQuery()), 250);
+  });
+
+  qInput.addEventListener('keydown', (e) => {
+    const items = categorySuggestions.querySelectorAll('.suggestion-item');
+    if (items.length === 0 || categorySuggestions.style.display === 'none') return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      suggestionHighlightIdx = (suggestionHighlightIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items.forEach((el, i) => el.classList.toggle('highlighted', i === suggestionHighlightIdx));
+    } else if (e.key === 'Enter' && suggestionHighlightIdx >= 0) {
+      e.preventDefault();
+      applySuggestion(items[suggestionHighlightIdx].dataset.domain);
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-pill')) hideSuggestions();
+  });
+
+  navAllMail.addEventListener('click', () => {
+    qInput.value = '';
+    selectedCategory = null;
+    renderCategoryPill();
+    runSearch(getEffectiveQuery());
+    qInput.focus();
+  });
+
+  navStarred.addEventListener('click', () => {
+    const isActive = navStarred.classList.contains('active');
+    qInput.value = isActive ? '' : 'label:Starred';
+    runSearch(getEffectiveQuery());
+    qInput.focus();
+  });
+
+  categorySelect.addEventListener('change', () => setSelectedCategory(categorySelect.value || null));
+
+  sortSelect.addEventListener('change', render);
+
+  list.addEventListener('click', (e) => {
+    const row = e.target.closest('.row[data-id]');
+    if (!row) return;
+    openEmail(row.dataset.id);
+  });
+
+  async function openEmail(id) {
+    const res = await fetch('/api/email/' + id);
+    if (!res.ok) return;
+    const email = await res.json();
+    currentOpenEmail = email;
+
+    modalSubject.textContent = email.subject || '(no subject)';
+    const from = email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address;
+    modalMeta.textContent = `${from} · ${formatDateLong(email.email_date)}`;
+
+    if (email.body_html) {
+      modalBody.innerHTML = '<iframe sandbox="" referrerpolicy="no-referrer"></iframe>';
+      modalBody.querySelector('iframe').srcdoc = email.body_html;
+    } else {
+      modalBody.innerHTML = '<pre></pre>';
+      modalBody.querySelector('pre').textContent = email.body_text || '(no content)';
+    }
+
+    backdrop.classList.add('open');
+    renderModalThread(email);
+  }
+
+  // Conversation strip above the body — only shown when this email's
+  // thread_key (scripts/compute-threads.js) actually groups more than one
+  // message. Clicking another message in it just calls openEmail() again,
+  // so switching between messages in a thread reuses the exact same render
+  // path as opening one from the list.
+  async function renderModalThread(email) {
+    if (!email.thread_key) { modalThreadList.classList.remove('open'); modalThreadList.innerHTML = ''; return; }
+    try {
+      const res = await fetch('/api/thread/' + encodeURIComponent(email.thread_key));
+      const data = await res.json();
+      const items = data.results || [];
+      if (items.length <= 1) { modalThreadList.classList.remove('open'); modalThreadList.innerHTML = ''; return; }
+      modalThreadList.innerHTML = `<div class="mtl-label">Conversation (${items.length})</div>` +
+        items.map(m => `
+          <div class="modal-thread-item${m.id === email.id ? ' current' : ''}" data-id="${m.id}">
+            <span class="mtname">${escapeHtml(m.from_name || m.from_address || '?')}</span>
+            <span class="mtsnip">${escapeHtml(m.subject || '')}</span>
+            <span class="mtdate">${formatDate(m.email_date)}</span>
+          </div>`).join('');
+      modalThreadList.classList.add('open');
+    } catch (err) {
+      modalThreadList.classList.remove('open');
+      modalThreadList.innerHTML = '';
+    }
+  }
+
+  modalThreadList.addEventListener('click', (e) => {
+    const item = e.target.closest('.modal-thread-item[data-id]');
+    if (item) openEmail(item.dataset.id);
+  });
+
+  function closeModal() {
+    backdrop.classList.remove('open');
+    modalBody.innerHTML = '';
+    modalThreadList.classList.remove('open');
+    modalThreadList.innerHTML = '';
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (previewBackdrop.classList.contains('open')) closePreview();
+    else closeModal();
+  });
+
+  // ─── Sync ───────────────────────────────────────────────────────────────
+  // Polls continuously (not just after clicking the button) so startup- and
+  // timer-triggered syncs (server-side, every 5 min) show up here too.
+  let wasRunning = false;
+
+  function timeAgo(iso) {
+    if (!iso) return null;
+    const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+    if (secs < 10) return 'just now';
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
+  }
+
+  function renderSyncStatus(state) {
+    syncBtn.classList.toggle('syncing', state.running);
+
+    if (state.running) {
+      const phaseLabel = state.currentPhase === 'catchup' ? 'Checking recent mail' : 'Syncing';
+      syncStatus.textContent = state.currentMailbox ? `${phaseLabel} — ${state.currentMailbox}…` : `${phaseLabel}…`;
+      syncStatus.title = '';
+      return;
+    }
+
+    if (state.error) {
+      syncStatus.textContent = `Sync failed: ${state.error}`;
+      syncStatus.title = '';
+      return;
+    }
+
+    if (!state.finishedAt) {
+      syncStatus.textContent = '';
+      return;
+    }
+
+    const ago = timeAgo(state.finishedAt);
+    const s = state.lastSummary;
+    let detail = '';
+    if (s) {
+      const bits = [];
+      if (s.inserted > 0) bits.push(`${s.inserted} new`);
+      if (s.failed > 0) bits.push(`${s.failed} failed`);
+      detail = bits.length ? ` (${bits.join(', ')})` : ' (up to date)';
+    }
+    syncStatus.textContent = `Synced ${ago}${detail}`;
+    syncStatus.title = s ? `seen ${s.seen} · inserted ${s.inserted} · labeled ${s.labeled} · skipped ${s.skipped} · failed ${s.failed}` : '';
+  }
+
+  async function pollSync() {
+    try {
+      const res = await fetch('/api/sync');
+      const state = await res.json();
+      renderSyncStatus(state);
+      if (wasRunning && !state.running) {
+        runSearch(currentQuery); // a sync (from any source) just finished — surface anything new
+      }
+      wasRunning = state.running;
+    } catch (err) {
+      // Transient — next poll will retry.
+    }
+  }
+
+  syncBtn.addEventListener('click', async () => {
+    if (syncBtn.classList.contains('syncing')) return;
+    const res = await fetch('/api/sync', { method: 'POST' });
+    if (res.status === 409) { syncStatus.textContent = 'Already syncing…'; return; }
+    pollSync();
+  });
+
+  setInterval(pollSync, 4000);
+  pollSync();
+
+  // ─── Compose (drafts only — no send path yet, see server.js) ────────────
+
+  const composeBackdrop = document.getElementById('composeBackdrop');
+  const composeModalTitle = document.getElementById('composeModalTitle');
+  const composeSaveStatus = document.getElementById('composeSaveStatus');
+  const composeDiscardBtn = document.getElementById('composeDiscardBtn');
+  const composeCloseBtn = document.getElementById('composeCloseBtn');
+  const composeCcBccToggle = document.getElementById('composeCcBccToggle');
+  const composeCcRow = document.getElementById('composeCcRow');
+  const composeBccRow = document.getElementById('composeBccRow');
+  const composeSubject = document.getElementById('composeSubject');
+  const composeBody = document.getElementById('composeBody');
+  const composeAttachmentsEl = document.getElementById('composeAttachments');
+  const composeAttachBtn = document.getElementById('composeAttachBtn');
+  const composeFileInput = document.getElementById('composeFileInput');
+  const composeSendBtn = document.getElementById('composeSendBtn');
+  const composeBtn = document.getElementById('composeBtn');
+  const draftList = document.getElementById('draftList');
+  const toast = document.getElementById('toast');
+  const replyBtn = document.getElementById('replyBtn');
+  const replyAllBtn = document.getElementById('replyAllBtn');
+  const forwardBtn = document.getElementById('forwardBtn');
+
+  let myEmail = '';
+  let composeDraftId = null;
+  let composeAttachmentsState = [];
+  let composeSaveTimer = null;
+
+  fetch('/api/me').then(r => r.json()).then(d => { myEmail = (d.email || '').toLowerCase(); }).catch(() => {});
+
+  function extractAddresses(str) {
+    return (str || '').match(/[^\s,<>"]+@[^\s,<>"]+/g) || [];
+  }
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.style.display = '';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => { toast.style.display = 'none'; }, 4000);
+  }
+
+  function scheduleAutosave() {
+    composeSaveStatus.textContent = 'Saving…';
+    clearTimeout(composeSaveTimer);
+    composeSaveTimer = setTimeout(saveComposeNow, 600);
+  }
+
+  async function saveComposeNow() {
+    if (!composeDraftId) return;
+    clearTimeout(composeSaveTimer);
+    try {
+      await fetch(`/api/drafts/${composeDraftId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toAddresses: toField.get(),
+          ccAddresses: ccField.get(),
+          bccAddresses: bccField.get(),
+          subject: composeSubject.value,
+          bodyHtml: composeBody.innerHTML,
+        }),
+      });
+      composeSaveStatus.textContent = 'Saved';
+    } catch (err) {
+      composeSaveStatus.textContent = 'Save failed';
+    }
+  }
+
+  // ─── To/Cc/Bcc chip fields — shared factory, one instance each ──────────
+  function makeChipField(inputEl, chipsContainerEl, suggestionsEl) {
+    let chips = [];
+    let highlightIdx = -1;
+
+    function render() {
+      chipsContainerEl.querySelectorAll('.compose-chip').forEach(el => el.remove());
+      for (const addr of chips) {
+        const chip = document.createElement('span');
+        chip.className = 'compose-chip';
+        chip.innerHTML = `${escapeHtml(addr)}<button type="button" title="Remove">&times;</button>`;
+        chip.querySelector('button').addEventListener('click', () => {
+          chips = chips.filter(a => a !== addr);
+          render();
+          scheduleAutosave();
+        });
+        chipsContainerEl.insertBefore(chip, inputEl);
+      }
+    }
+
+    function hideSuggestionsFor() {
+      suggestionsEl.style.display = 'none';
+      suggestionsEl.innerHTML = '';
+      highlightIdx = -1;
+    }
+
+    function addChip(addr) {
+      addr = addr.trim().replace(/,$/, '');
+      if (!addr) return;
+      if (!chips.includes(addr)) chips.push(addr);
+      inputEl.value = '';
+      hideSuggestionsFor();
+      render();
+      scheduleAutosave();
+    }
+
+    async function showSuggestionsFor(partial) {
+      if (!partial.trim()) { hideSuggestionsFor(); return; }
+      try {
+        const res = await fetch('/api/contacts?q=' + encodeURIComponent(partial));
+        const data = await res.json();
+        const results = (data.results || []).filter(c => !chips.includes(c.from_address));
+        if (results.length === 0) { hideSuggestionsFor(); return; }
+        suggestionsEl.innerHTML = results.map((c, i) => `
+          <div class="suggestion-item${i === 0 ? ' highlighted' : ''}" data-addr="${escapeHtml(c.from_address)}">
+            <span class="sname">${escapeHtml(c.from_name || c.from_address)}</span>
+            ${c.from_name ? `<span class="saddr">${escapeHtml(c.from_address)}</span>` : ''}
+          </div>`).join('');
+        suggestionsEl.style.display = '';
+        highlightIdx = 0;
+      } catch (err) {
+        hideSuggestionsFor();
+      }
+    }
+
+    suggestionsEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.suggestion-item[data-addr]');
+      if (item) addChip(item.dataset.addr);
+    });
+
+    inputEl.addEventListener('input', () => showSuggestionsFor(inputEl.value));
+
+    inputEl.addEventListener('keydown', (e) => {
+      const items = suggestionsEl.querySelectorAll('.suggestion-item');
+      if (items.length > 0 && suggestionsEl.style.display !== 'none') {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          highlightIdx = (highlightIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+          items.forEach((el, i) => el.classList.toggle('highlighted', i === highlightIdx));
+          return;
+        }
+        if (e.key === 'Enter' && highlightIdx >= 0) {
+          e.preventDefault();
+          addChip(items[highlightIdx].dataset.addr);
+          return;
+        }
+        if (e.key === 'Escape') { hideSuggestionsFor(); return; }
+      }
+      if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+        if (inputEl.value.trim()) {
+          e.preventDefault();
+          addChip(inputEl.value);
+        }
+      } else if (e.key === 'Backspace' && inputEl.value === '' && chips.length > 0) {
+        chips.pop();
+        render();
+        scheduleAutosave();
+      }
+    });
+
+    // Delayed, not immediate: a click on a suggestion item also blurs this
+    // input (focus moves away) which fires BEFORE that item's own click
+    // handler — committing raw text here immediately would race ahead of
+    // addChip(cleanAddress) and add the wrong thing. Waiting lets the
+    // suggestion's click run first and clear inputEl.value, so by the time
+    // this fires there's nothing left to (wrongly) commit.
+    inputEl.addEventListener('blur', () => {
+      setTimeout(() => {
+        hideSuggestionsFor();
+        if (inputEl.value.trim()) addChip(inputEl.value);
+      }, 150);
+    });
+
+    return {
+      get: () => chips,
+      set: (addrs) => { chips = [...(addrs || [])]; render(); },
+    };
+  }
+
+  const toField = makeChipField(document.getElementById('composeToInput'), document.getElementById('composeToChips'), document.getElementById('composeToSuggestions'));
+  const ccField = makeChipField(document.getElementById('composeCcInput'), document.getElementById('composeCcChips'), document.getElementById('composeCcSuggestions'));
+  const bccField = makeChipField(document.getElementById('composeBccInput'), document.getElementById('composeBccChips'), document.getElementById('composeBccSuggestions'));
+
+  composeCcBccToggle.addEventListener('click', () => {
+    composeCcRow.style.display = '';
+    composeBccRow.style.display = '';
+    composeCcBccToggle.style.display = 'none';
+  });
+
+  document.querySelectorAll('.fmt-btn[data-cmd]').forEach(btn => {
+    // Without this, mousedown on the button blurs composeBody and collapses
+    // whatever text was selected before click ever fires, so execCommand
+    // below would have nothing to act on.
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      composeBody.focus();
+      if (btn.dataset.cmd === 'createLink') {
+        const url = prompt('Link URL:');
+        if (!url) return;
+        document.execCommand('createLink', false, url);
+      } else {
+        document.execCommand(btn.dataset.cmd, false, null);
+      }
+      scheduleAutosave();
+    });
+  });
+
+  composeSubject.addEventListener('input', scheduleAutosave);
+  composeBody.addEventListener('input', scheduleAutosave);
+
+  // ─── Attachments ─────────────────────────────────────────────────────────
+
+  function renderComposeAttachments() {
+    composeAttachmentsEl.innerHTML = composeAttachmentsState.map(a => `
+      <span class="compose-attachment-chip">
+        <span class="fname" title="${escapeHtml(a.filename)}">${escapeHtml(a.filename)}</span>
+        <span class="fsize">${fmtSize(a.size_bytes)}</span>
+        <button type="button" data-id="${a.id}" title="Remove">&times;</button>
+      </span>`).join('');
+  }
+
+  composeAttachmentsEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-id]');
+    if (!btn || !composeDraftId) return;
+    await fetch(`/api/drafts/${composeDraftId}/attachments/${btn.dataset.id}`, { method: 'DELETE' });
+    composeAttachmentsState = composeAttachmentsState.filter(a => String(a.id) !== btn.dataset.id);
+    renderComposeAttachments();
+  });
+
+  composeAttachBtn.addEventListener('click', () => composeFileInput.click());
+
+  composeFileInput.addEventListener('change', async () => {
+    if (!composeDraftId || composeFileInput.files.length === 0) return;
+    const formData = new FormData();
+    for (const file of composeFileInput.files) formData.append('files', file);
+    const label = composeAttachBtn.textContent;
+    composeAttachBtn.textContent = 'Uploading…';
+    try {
+      const res = await fetch(`/api/drafts/${composeDraftId}/attachments`, { method: 'POST', body: formData });
+      const data = await res.json();
+      composeAttachmentsState.push(...(data.results || []));
+      renderComposeAttachments();
+    } finally {
+      composeAttachBtn.textContent = label;
+      composeFileInput.value = '';
+    }
+  });
+
+  // ─── Open / close, and building reply/reply-all/forward starting state ──
+
+  function quoteHeader(mode, email) {
+    const who = email.from_name ? `${escapeHtml(email.from_name)} &lt;${escapeHtml(email.from_address)}&gt;` : escapeHtml(email.from_address);
+    if (mode === 'forward') {
+      return `<div style="color:#5f6368;font-size:13px;border-top:1px solid #ccc;padding-top:8px;">
+        ---------- Forwarded message ----------<br>
+        From: ${who}<br>
+        Date: ${escapeHtml(formatDateLong(email.email_date))}<br>
+        Subject: ${escapeHtml(email.subject || '')}<br>
+        To: ${escapeHtml(email.to_address || '')}
+      </div>`;
+    }
+    return `<div style="color:#5f6368;font-size:13px;">On ${escapeHtml(formatDateLong(email.email_date))}, ${who} wrote:</div>`;
+  }
+
+  function quotedBody(email) {
+    return email.body_html || escapeHtml(email.body_text || '').replace(/\n/g, '<br>');
+  }
+
+  async function openCompose(mode, sourceEmail) {
+    const payload = { mode, toAddresses: [], ccAddresses: [], subject: '', bodyHtml: '' };
+
+    if (sourceEmail) {
+      payload.inReplyToEmailId = sourceEmail.id;
+      payload.inReplyTo = sourceEmail.message_id;
+      payload.threadReferences = [...(sourceEmail.thread_references || []), sourceEmail.message_id].filter(Boolean);
+
+      const replyTarget = sourceEmail.reply_to_address || sourceEmail.from_address;
+      const subjectPrefix = mode === 'forward' ? 'Fwd:' : 'Re:';
+      const alreadyPrefixed = new RegExp('^' + subjectPrefix, 'i').test(sourceEmail.subject || '');
+      payload.subject = alreadyPrefixed ? (sourceEmail.subject || '') : `${subjectPrefix} ${sourceEmail.subject || ''}`;
+
+      if (mode === 'reply') {
+        payload.toAddresses = [replyTarget].filter(Boolean);
+      } else if (mode === 'reply_all') {
+        const dedupe = (arr) => arr.filter((a, i) => a && a.toLowerCase() !== myEmail && arr.indexOf(a) === i);
+        payload.toAddresses = dedupe([replyTarget, ...extractAddresses(sourceEmail.to_address)]);
+        payload.ccAddresses = dedupe(extractAddresses(sourceEmail.cc)).filter(a => !payload.toAddresses.includes(a));
+      }
+
+      payload.bodyHtml = `<br><br>${quoteHeader(mode, sourceEmail)}<blockquote style="margin:0 0 0 .8ex;border-left:2px solid #e3e6ea;padding-left:1ex;">${quotedBody(sourceEmail)}</blockquote>`;
+
+      if (mode === 'forward' && (sourceEmail.attachments || []).length > 0) {
+        payload.carryAttachmentsFromEmailId = sourceEmail.id;
+      }
+    }
+
+    const res = await fetch('/api/drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const draft = await res.json();
+    loadDraftIntoUI(draft);
+    loadDrafts();
+  }
+
+  function loadDraftIntoUI(draft) {
+    composeDraftId = draft.id;
+    composeModalTitle.textContent = draft.mode === 'forward' ? 'Forward'
+      : draft.mode === 'reply' ? 'Reply'
+      : draft.mode === 'reply_all' ? 'Reply All'
+      : 'New Message';
+    toField.set(draft.to_addresses);
+    ccField.set(draft.cc_addresses);
+    bccField.set(draft.bcc_addresses);
+    const hasCcBcc = (draft.cc_addresses || []).length > 0 || (draft.bcc_addresses || []).length > 0;
+    composeCcRow.style.display = hasCcBcc ? '' : 'none';
+    composeBccRow.style.display = hasCcBcc ? '' : 'none';
+    composeCcBccToggle.style.display = hasCcBcc ? 'none' : '';
+    composeSubject.value = draft.subject || '';
+    composeBody.innerHTML = draft.body_html || '';
+    composeAttachmentsState = draft.attachments || [];
+    renderComposeAttachments();
+    composeSaveStatus.textContent = '';
+    composeBackdrop.classList.add('open');
+  }
+
+  function closeCompose() {
+    clearTimeout(composeSaveTimer);
+    saveComposeNow();
+    composeBackdrop.classList.remove('open');
+    composeDraftId = null;
+    loadDrafts();
+  }
+
+  composeBtn.addEventListener('click', () => openCompose('new', null));
+  composeCloseBtn.addEventListener('click', closeCompose);
+
+  composeDiscardBtn.addEventListener('click', async () => {
+    if (!composeDraftId) return;
+    if (!confirm('Discard this draft?')) return;
+    clearTimeout(composeSaveTimer);
+    await fetch(`/api/drafts/${composeDraftId}`, { method: 'DELETE' });
+    composeBackdrop.classList.remove('open');
+    composeDraftId = null;
+    loadDrafts();
+  });
+
+  // Unplugged for now — server.js's POST /api/drafts/:id/send still exists
+  // and works (tested live over Bridge's SMTP), this just stops the UI from
+  // calling it. Re-enabling later is a one-line swap: fetch that endpoint
+  // instead of only saving.
+  composeSendBtn.addEventListener('click', async () => {
+    clearTimeout(composeSaveTimer);
+    await saveComposeNow();
+    composeBackdrop.classList.remove('open');
+    composeDraftId = null;
+    loadDrafts();
+    showToast("Sending is unplugged for now — your message was saved as a draft.");
+  });
+
+  replyBtn.addEventListener('click', () => { if (currentOpenEmail) openCompose('reply', currentOpenEmail); });
+  replyAllBtn.addEventListener('click', () => { if (currentOpenEmail) openCompose('reply_all', currentOpenEmail); });
+  forwardBtn.addEventListener('click', () => { if (currentOpenEmail) openCompose('forward', currentOpenEmail); });
+
+  // ─── Drafts sidebar list ─────────────────────────────────────────────────
+
+  async function loadDrafts() {
+    try {
+      const res = await fetch('/api/drafts');
+      const data = await res.json();
+      renderDrafts(data.results || []);
+    } catch (err) {
+      // Non-fatal — the sidebar section just stays empty.
+    }
+  }
+
+  function renderDrafts(items) {
+    if (items.length === 0) { draftList.innerHTML = ''; return; }
+    draftList.innerHTML = items.map(d => `
+      <div class="saved-search-item" data-id="${d.id}" title="${escapeHtml(d.subject || '(no subject)')}">
+        <span class="ssname">${escapeHtml(d.subject || '(no subject)')}</span>
+        <button class="ssdelete" data-id="${d.id}" title="Delete">&times;</button>
+      </div>`).join('');
+  }
+
+  draftList.addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.ssdelete');
+    if (deleteBtn) {
+      e.stopPropagation();
+      await fetch('/api/drafts/' + deleteBtn.dataset.id, { method: 'DELETE' });
+      loadDrafts();
+      return;
+    }
+    const item = e.target.closest('.saved-search-item[data-id]');
+    if (!item) return;
+    const res = await fetch('/api/drafts/' + item.dataset.id);
+    if (!res.ok) return;
+    loadDraftIntoUI(await res.json());
+  });
+
+  loadCategories();
+  loadSavedSearches();
+  loadDrafts();
+  runSearch(''); // show the latest mail on load, like opening an inbox
+</script>
+</body>
+</html>
